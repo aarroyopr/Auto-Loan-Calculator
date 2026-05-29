@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Auto Loan Calculator — Used Car Financing Estimator</title>
+  <meta name="description" content="Estimate your used car monthly payments instantly. Enter your price, credit score tier, vehicle year, and loan term to get a real-time breakdown." />
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;900&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <!-- React + Babel (no build step needed) -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      background: #0A0F1E;
+      font-family: 'DM Sans', sans-serif;
+      color: #fff;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #0A0F1E; }
+    ::-webkit-scrollbar-thumb { background: #C9A84C44; border-radius: 3px; }
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.035'/%3E%3C/svg%3E");
+      pointer-events: none; z-index: 9999;
+    }
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 40px; height: 68px;
+      background: rgba(10,15,30,0.85); backdrop-filter: blur(16px);
+      border-bottom: 1px solid rgba(201,168,76,0.12);
+    }
+    .nav-logo { font-family: 'Playfair Display', serif; font-size: 1.25rem; font-weight: 700; color: #C9A84C; letter-spacing: -0.3px; text-decoration: none; }
+    .nav-logo span { color: #fff; font-weight: 400; }
+    .nav-links { display: flex; gap: 32px; list-style: none; }
+    .nav-links a { color: #8892b0; text-decoration: none; font-size: 14px; font-weight: 500; transition: color 0.2s; }
+    .nav-links a:hover { color: #C9A84C; }
+    .nav-cta { background: linear-gradient(135deg, #C9A84C, #a8893b); color: #0A0F1E !important; font-weight: 700 !important; padding: 9px 20px; border-radius: 8px; transition: opacity 0.2s !important; }
+    .nav-cta:hover { opacity: 0.85; }
+    @media (max-width: 640px) { nav { padding: 0 20px; } .nav-links { display: none; } }
+    .hero {
+      min-height: 100vh; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      text-align: center; padding: 120px 24px 80px; position: relative;
+    }
+    .hero::after {
+      content: ''; position: absolute; top: 50%; left: 50%;
+      transform: translate(-50%, -60%); width: 700px; height: 500px;
+      background: radial-gradient(ellipse, rgba(201,168,76,0.08) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(201,168,76,0.1); border: 1px solid rgba(201,168,76,0.3);
+      border-radius: 100px; padding: 6px 16px; font-size: 12px; font-weight: 600;
+      color: #C9A84C; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 28px;
+    }
+    .hero h1 { font-family: 'Playfair Display', serif; font-size: clamp(2.6rem, 7vw, 5rem); font-weight: 900; line-height: 1.1; letter-spacing: -1.5px; max-width: 820px; margin-bottom: 24px; }
+    .hero h1 .gold { color: #C9A84C; }
+    .hero p { font-size: clamp(1rem, 2.5vw, 1.2rem); color: #8892b0; max-width: 560px; line-height: 1.7; margin-bottom: 40px; }
+    .hero-actions { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; }
+    .btn-primary {
+      background: linear-gradient(135deg, #C9A84C, #a8893b); color: #0A0F1E;
+      font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 700;
+      padding: 14px 32px; border-radius: 10px; border: none; cursor: pointer;
+      text-decoration: none; display: inline-flex; align-items: center; gap: 8px;
+      transition: transform 0.2s, box-shadow 0.2s; box-shadow: 0 4px 24px rgba(201,168,76,0.25);
+    }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(201,168,76,0.35); }
+    .btn-secondary {
+      background: transparent; color: #8892b0; font-family: 'DM Sans', sans-serif;
+      font-size: 15px; font-weight: 600; padding: 14px 28px; border-radius: 10px;
+      border: 1.5px solid rgba(255,255,255,0.12); cursor: pointer; text-decoration: none;
+      display: inline-flex; align-items: center; gap: 8px; transition: border-color 0.2s, color 0.2s;
+    }
+    .btn-secondary:hover { border-color: rgba(201,168,76,0.35); color: #C9A84C; }
+    .trust-strip {
+      display: flex; justify-content: center; gap: 40px; flex-wrap: wrap;
+      padding: 28px 24px; border-top: 1px solid rgba(255,255,255,0.05);
+      border-bottom: 1px solid rgba(255,255,255,0.05); background: rgba(255,255,255,0.01);
+    }
+    .trust-item { display: flex; align-items: center; gap: 10px; color: #8892b0; font-size: 13px; font-weight: 500; }
+    .trust-item .icon { font-size: 20px; line-height: 1; }
+    .section { padding: 80px 24px; max-width: 1000px; margin: 0 auto; }
+    .section-label { text-align: center; font-size: 11px; font-weight: 700; letter-spacing: 2.5px; text-transform: uppercase; color: #C9A84C; margin-bottom: 14px; }
+    .section-title { font-family: 'Playfair Display', serif; font-size: clamp(1.8rem, 4vw, 2.6rem); font-weight: 700; text-align: center; margin-bottom: 16px; line-height: 1.2; }
+    .section-sub { color: #8892b0; text-align: center; font-size: 15px; line-height: 1.7; max-width: 520px; margin: 0 auto 56px; }
+    .steps-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 24px; }
+    .step-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(201,168,76,0.12); border-radius: 16px; padding: 28px 22px; transition: border-color 0.25s, transform 0.25s; }
+    .step-card:hover { border-color: rgba(201,168,76,0.3); transform: translateY(-3px); }
+    .step-number { font-family: 'Playfair Display', serif; font-size: 2rem; font-weight: 700; color: rgba(201,168,76,0.25); margin-bottom: 12px; line-height: 1; }
+    .step-icon { font-size: 24px; margin-bottom: 10px; }
+    .step-title { font-size: 15px; font-weight: 700; margin-bottom: 8px; }
+    .step-desc { font-size: 13px; color: #8892b0; line-height: 1.6; }
+    .rate-table-wrapper { background: rgba(255,255,255,0.025); border: 1px solid rgba(201,168,76,0.15); border-radius: 16px; overflow: hidden; }
+    .term-table-wrapper { background: rgba(255,255,255,0.025); border: 1px solid rgba(201,168,76,0.15); border-radius: 16px; overflow: hidden; margin-top: 24px; }
+    .rate-table { width: 100%; border-collapse: collapse; }
+    .rate-table th { background: rgba(201,168,76,0.08); color: #C9A84C; font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; padding: 14px 20px; text-align: left; }
+    .rate-table td { padding: 14px 20px; font-size: 14px; border-top: 1px solid rgba(255,255,255,0.05); color: #cbd5e1; }
+    .rate-table tr:hover td { background: rgba(255,255,255,0.02); }
+    .rate-badge { display: inline-block; padding: 3px 10px; border-radius: 100px; font-size: 12px; font-weight: 700; }
+    .cta-banner {
+      margin: 0 24px 80px;
+      background: linear-gradient(135deg, rgba(201,168,76,0.1), rgba(201,168,76,0.04));
+      border: 1px solid rgba(201,168,76,0.3); border-radius: 20px;
+      padding: 56px 40px; text-align: center; position: relative; overflow: hidden;
+    }
+    .cta-banner::before { content: ''; position: absolute; top: -60px; right: -60px; width: 260px; height: 260px; background: radial-gradient(circle, rgba(201,168,76,0.12) 0%, transparent 70%); pointer-events: none; }
+    .cta-banner h2 { font-family: 'Playfair Display', serif; font-size: clamp(1.6rem, 4vw, 2.4rem); font-weight: 700; margin-bottom: 14px; }
+    .cta-banner p { color: #8892b0; font-size: 15px; margin-bottom: 32px; line-height: 1.7; }
+    #calculator { padding: 80px 0 48px; background: linear-gradient(180deg, transparent 0%, rgba(201,168,76,0.03) 50%, transparent 100%); }
+    .calc-header { text-align: center; padding: 0 24px; margin-bottom: 48px; }
+    footer { border-top: 1px solid rgba(255,255,255,0.06); padding: 40px 40px 32px; display: flex; flex-direction: column; align-items: center; gap: 16px; }
+    .footer-logo { font-family: 'Playfair Display', serif; font-size: 1.1rem; font-weight: 700; color: #C9A84C; }
+    .footer-logo span { color: #8892b0; font-weight: 400; }
+    .footer-links { display: flex; gap: 28px; list-style: none; flex-wrap: wrap; justify-content: center; }
+    .footer-links a { color: #4a5568; font-size: 13px; text-decoration: none; transition: color 0.2s; }
+    .footer-links a:hover { color: #8892b0; }
+    .footer-copy { font-size: 12px; color: #2d3748; }
+    .footer-disclaimer { font-size: 11px; color: #2d3748; max-width: 640px; text-align: center; line-height: 1.6; }
+    .divider { height: 1px; background: linear-gradient(90deg, transparent, rgba(201,168,76,0.15), transparent); margin: 0 24px; }
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
+    .fade-up { animation: fadeUp 0.7s ease both; }
+    .delay-1 { animation-delay: 0.1s; }
+    .delay-2 { animation-delay: 0.22s; }
+    .delay-3 { animation-delay: 0.34s; }
+  </style>
+</head>
+<body>
+
+  <nav>
+    <a href="#" class="nav-logo">Drive<span>Finance</span></a>
+    <ul class="nav-links">
+      <li><a href="#how-it-works">How It Works</a></li>
+      <li><a href="#rates">APR Rates</a></li>
+      <li><a href="#calculator">Calculator</a></li>
+      <li><a href="#calculator" class="nav-cta">Calculate Now</a></li>
+    </ul>
+  </nav>
+
+  <section class="hero">
+    <div class="hero-badge fade-up">⚡ Real-Time Estimates · No Login Required</div>
+    <h1 class="fade-up delay-1">Know Your Payment<br/><span class="gold">Before You Buy.</span></h1>
+    <p class="fade-up delay-2">Our used car loan calculator gives you an instant, accurate monthly payment estimate based on your credit tier, vehicle age, and loan term — in seconds.</p>
+    <div class="hero-actions fade-up delay-3">
+      <a href="#calculator" class="btn-primary">🚗 Calculate My Payment</a>
+      <a href="#how-it-works" class="btn-secondary">See How It Works ↓</a>
+    </div>
+  </section>
+
+  <div class="trust-strip">
+    <div class="trust-item"><span class="icon">🔒</span> No personal data collected</div>
+    <div class="trust-item"><span class="icon">⚡</span> Instant real-time results</div>
+    <div class="trust-item"><span class="icon">📱</span> Works on any device</div>
+    <div class="trust-item"><span class="icon">🏦</span> Standard amortization formula</div>
+    <div class="trust-item"><span class="icon">✅</span> 100% free to use</div>
+  </div>
+
+  <section class="section" id="how-it-works">
+    <p class="section-label">How It Works</p>
+    <h2 class="section-title">Four simple steps to your estimate</h2>
+    <p class="section-sub">No sign-ups, no credit pulls, no commitments. Just enter your details and see your payment instantly.</p>
+    <div class="steps-grid">
+      <div class="step-card"><div class="step-number">01</div><div class="step-icon">💰</div><div class="step-title">Enter the vehicle price</div><div class="step-desc">Type the asking price and your down payment. We calculate the financed amount automatically.</div></div>
+      <div class="step-card"><div class="step-number">02</div><div class="step-icon">📊</div><div class="step-title">Select your credit tier</div><div class="step-desc">Choose your FICO Score 08 range. Each tier maps to a realistic APR automatically.</div></div>
+      <div class="step-card"><div class="step-number">03</div><div class="step-icon">📅</div><div class="step-title">Pick the vehicle year & term</div><div class="step-desc">Older vehicles qualify for shorter maximum terms. Options are auto-limited by lender guidelines.</div></div>
+      <div class="step-card"><div class="step-number">04</div><div class="step-icon">🛡️</div><div class="step-title">Add optional coverages</div><div class="step-desc">Toggle GAP insurance or extended warranty to see their impact on your total monthly cost.</div></div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <section class="section" id="rates">
+    <p class="section-label">Reference Tables</p>
+    <h2 class="section-title">APR Tiers &amp; Eligible Loan Terms</h2>
+    <p class="section-sub">Rates and term caps used in the calculator, based on FICO Score 08 and vehicle age.</p>
+    <div class="rate-table-wrapper">
+      <table class="rate-table">
+        <thead><tr><th>FICO Tier</th><th>Score Range</th><th>Annual Percentage Rate</th><th>Rating</th></tr></thead>
+        <tbody>
+          <tr><td>🟢 Excellent</td><td>750 – 800</td><td><strong style="color:#22c55e">3.9% APR</strong></td><td><span class="rate-badge" style="background:rgba(34,197,94,0.12);color:#22c55e">Best Rate</span></td></tr>
+          <tr><td>🔵 Superior</td><td>700 – 749</td><td><strong style="color:#3b82f6">5.9% APR</strong></td><td><span class="rate-badge" style="background:rgba(59,130,246,0.12);color:#3b82f6">Great Rate</span></td></tr>
+          <tr><td>🟡 Average</td><td>650 – 699</td><td><strong style="color:#eab308">8.9% APR</strong></td><td><span class="rate-badge" style="background:rgba(234,179,8,0.12);color:#eab308">Fair Rate</span></td></tr>
+          <tr><td>🔴 Regular</td><td>Below 649</td><td><strong style="color:#ef4444">13.9% APR</strong></td><td><span class="rate-badge" style="background:rgba(239,68,68,0.12);color:#ef4444">Higher Rate</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="term-table-wrapper">
+      <table class="rate-table">
+        <thead><tr><th>Vehicle Age</th><th>Examples</th><th>Max Loan Term</th></tr></thead>
+        <tbody>
+          <tr><td>0 – 3 years old</td><td style="color:#8892b0">2023, 2024, 2025, 2026</td><td><strong style="color:#C9A84C">Up to 72 months</strong></td></tr>
+          <tr><td>4 – 6 years old</td><td style="color:#8892b0">2020, 2021, 2022</td><td><strong style="color:#C9A84C">Up to 60 months</strong></td></tr>
+          <tr><td>7 – 10 years old</td><td style="color:#8892b0">2016, 2017 – 2019</td><td><strong style="color:#C9A84C">Up to 48 months</strong></td></tr>
+          <tr><td>11+ years old</td><td style="color:#8892b0">2015 and older</td><td><strong style="color:#C9A84C">Up to 36 months</strong></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <section id="calculator">
+    <div class="calc-header">
+      <p class="section-label">The Calculator</p>
+      <h2 class="section-title">Estimate Your Monthly Payment</h2>
+      <p class="section-sub" style="margin-bottom:0">All fields update your results instantly. No submit button needed.</p>
+    </div>
+    <div id="calc-root"></div>
+  </section>
+
+  <div class="cta-banner">
+    <h2>Ready to take the next step?</h2>
+    <p>This estimate is a great starting point. Talk to a lender to lock in your actual rate<br/>and get pre-approved before you visit the dealership.</p>
+    <a href="#calculator" class="btn-primary">🔁 Recalculate</a>
+  </div>
+
+  <footer>
+    <div class="footer-logo">Drive<span>Finance</span></div>
+    <ul class="footer-links">
+      <li><a href="#how-it-works">How It Works</a></li>
+      <li><a href="#rates">Rate Reference</a></li>
+      <li><a href="#calculator">Calculator</a></li>
+    </ul>
+    <p class="footer-disclaimer">⚠️ This calculator provides estimates only. Actual rates, terms, and approval decisions may vary based on lender criteria, credit history, vehicle condition, state regulations, and other factors. This tool does not constitute a loan offer or financial advice. Consult a licensed lender before making any financing decision.</p>
+    <p class="footer-copy">© 2026 DriveFinance · All rights reserved</p>
+  </footer>
+
+  <script type="text/babel">
+    const { useState, useEffect, useCallback } = React;
+
+    const CREDIT_TIERS = [
+      { id: "excellent", label: "Excellent", range: "750–800",   apr: 3.9,  color: "#22c55e", emoji: "🟢" },
+      { id: "superior",  label: "Superior",  range: "700–749",   apr: 5.9,  color: "#3b82f6", emoji: "🔵" },
+      { id: "average",   label: "Average",   range: "650–699",   apr: 8.9,  color: "#eab308", emoji: "🟡" },
+      { id: "regular",   label: "Regular",   range: "Below 649", apr: 13.9, color: "#ef4444", emoji: "🔴" },
+    ];
+
+    const currentYear = new Date().getFullYear();
+    const VEHICLE_YEARS = Array.from({ length: 16 }, (_, i) => currentYear - i);
+
+    function getMaxTerm(vehicleYear) {
+      const age = currentYear - vehicleYear;
+      if (age <= 3)  return 72;
+      if (age <= 6)  return 60;
+      if (age <= 10) return 48;
+      return 36;
+    }
+
+    function getTermOptions(maxTerm) {
+      return [12, 24, 36, 48, 60, 72].filter(t => t <= maxTerm);
+    }
+
+    function formatCurrency(val) {
+      const n = parseFloat(String(val).replace(/[^0-9.]/g, ""));
+      if (isNaN(n)) return "";
+      return n.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+    }
+
+    function parseCurrency(val) {
+      return parseFloat(String(val).replace(/[^0-9.]/g, "")) || 0;
+    }
+
+    function calcMonthly(principal, aprPct, months) {
+      if (principal <= 0 || months <= 0) return 0;
+      const r = aprPct / 100 / 12;
+      if (r === 0) return principal / months;
+      return (principal * r * Math.pow(1 + r, months)) / (Math.pow(1 + r, months) - 1);
+    }
+
+    const S = {
+      root: { fontFamily: "'DM Sans', sans-serif", color: "#fff", padding: "0 16px 48px" },
+      container: { maxWidth: 980, margin: "0 auto" },
+      grid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 24, alignItems: "start" },
+      card: { background: "rgba(255,255,255,0.04)", border: "1px solid rgba(201,168,76,0.18)", borderRadius: 16, padding: "24px 20px", backdropFilter: "blur(12px)", boxShadow: "0 0 32px rgba(201,168,76,0.06), 0 8px 32px rgba(0,0,0,0.4)" },
+      sectionTitle: { fontFamily: "'Playfair Display', serif", fontSize: 13, fontWeight: 700, color: "#C9A84C", textTransform: "uppercase", letterSpacing: 2, marginBottom: 20, marginTop: 0 },
+      label: { display: "block", fontSize: 13, color: "#8892b0", marginBottom: 6, fontWeight: 500 },
+      input: { width: "100%", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "12px 16px", color: "#fff", fontSize: 16, fontFamily: "'DM Sans', sans-serif", outline: "none", boxSizing: "border-box", transition: "border-color 0.2s" },
+      select: { width: "100%", background: "#111827", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "12px 16px", color: "#fff", fontSize: 15, fontFamily: "'DM Sans', sans-serif", outline: "none", boxSizing: "border-box", cursor: "pointer", appearance: "none", backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23C9A84C' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E\")", backgroundRepeat: "no-repeat", backgroundPosition: "right 14px center" },
+      formGroup: { marginBottom: 18 },
+      warning: { fontSize: 12, color: "#ef4444", marginTop: 5 },
+      tierGrid: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 },
+      tierCard: (sel, color) => ({ background: sel ? `${color}18` : "rgba(255,255,255,0.04)", border: `1.5px solid ${sel ? color : "rgba(255,255,255,0.08)"}`, borderRadius: 12, padding: "12px 10px", cursor: "pointer", transition: "all 0.2s", textAlign: "center", boxShadow: sel ? `0 0 16px ${color}30` : "none" }),
+      termGroup: { display: "flex", flexWrap: "wrap", gap: 8 },
+      termBtn: (sel) => ({ padding: "9px 16px", borderRadius: 8, border: `1.5px solid ${sel ? "#C9A84C" : "rgba(255,255,255,0.12)"}`, background: sel ? "rgba(201,168,76,0.15)" : "transparent", color: sel ? "#C9A84C" : "#8892b0", fontFamily: "'DM Sans', sans-serif", fontSize: 14, fontWeight: 700, cursor: "pointer", transition: "all 0.18s" }),
+      toggleRow: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 },
+      toggle: (on) => ({ width: 44, height: 24, borderRadius: 12, background: on ? "#C9A84C" : "rgba(255,255,255,0.15)", position: "relative", cursor: "pointer", transition: "background 0.2s", border: "none", outline: "none", flexShrink: 0 }),
+      toggleKnob: (on) => ({ position: "absolute", top: 3, left: on ? 22 : 3, width: 18, height: 18, borderRadius: "50%", background: "#fff", transition: "left 0.2s", boxShadow: "0 1px 4px rgba(0,0,0,0.3)" }),
+      resultsCard: { background: "rgba(201,168,76,0.05)", border: "1px solid rgba(201,168,76,0.3)", borderRadius: 16, padding: "28px 24px", backdropFilter: "blur(12px)", boxShadow: "0 0 40px rgba(201,168,76,0.1), 0 8px 32px rgba(0,0,0,0.4)" },
+      summaryBar: { background: "linear-gradient(135deg, rgba(201,168,76,0.12), rgba(201,168,76,0.04))", border: "1px solid rgba(201,168,76,0.4)", borderRadius: 14, padding: "20px 24px", textAlign: "center", marginBottom: 24 },
+      statRow: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "13px 0", borderBottom: "1px solid rgba(255,255,255,0.06)" },
+      resetBtn: { marginTop: 20, width: "100%", padding: "13px", borderRadius: 10, border: "1.5px solid rgba(255,255,255,0.15)", background: "transparent", color: "#8892b0", fontFamily: "'DM Sans', sans-serif", fontSize: 14, fontWeight: 600, cursor: "pointer", transition: "all 0.2s", letterSpacing: 0.5 },
+      validationPanel: { background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 10, padding: "12px 16px", marginBottom: 16 },
+    };
+
+    function NumberInput({ value, onChange, placeholder }) {
+      const [focused, setFocused] = useState(false);
+      const [raw, setRaw] = useState("");
+      useEffect(() => { if (!focused) setRaw(value > 0 ? formatCurrency(String(value)) : ""); }, [value, focused]);
+      return (
+        <div style={{ position: "relative" }}>
+          <span style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: "#C9A84C", fontWeight: 700, fontSize: 16, pointerEvents: "none" }}>$</span>
+          <input type="text" inputMode="decimal" value={raw} placeholder={placeholder}
+            onFocus={() => { setFocused(true); setRaw(value > 0 ? String(value) : ""); }}
+            onBlur={() => { setFocused(false); const n = parseCurrency(raw); onChange(n); setRaw(n > 0 ? formatCurrency(String(n)) : ""); }}
+            onChange={(e) => { const c = e.target.value.replace(/[^0-9.]/g, ""); setRaw(c); onChange(parseFloat(c) || 0); }}
+            style={{ ...S.input, paddingLeft: 32, borderColor: focused ? "#C9A84C" : "rgba(255,255,255,0.1)" }}
+          />
+        </div>
+      );
+    }
+
+    function Toggle({ on, onToggle }) {
+      return <button style={S.toggle(on)} onClick={onToggle} aria-label="Toggle"><div style={S.toggleKnob(on)} /></button>;
+    }
+
+    const INIT = { carPrice: 0, downPayment: 0, creditTier: null, vehicleYear: currentYear, loanTerm: 72, gapEnabled: false, gapPremium: 0, warrantyEnabled: false, warrantyPremium: 0 };
+
+    function Calculator() {
+      const [s, setS] = useState(INIT);
+      const set = useCallback((k, v) => setS(prev => ({ ...prev, [k]: v })), []);
+      const maxTerm = getMaxTerm(s.vehicleYear);
+      const termOpts = getTermOptions(maxTerm);
+      useEffect(() => { if (s.loanTerm > maxTerm) set("loanTerm", maxTerm); }, [s.vehicleYear, maxTerm]);
+      const principal = Math.max(0, s.carPrice - s.downPayment);
+      const tier = CREDIT_TIERS.find(t => t.id === s.creditTier);
+      const baseMonthly = tier ? calcMonthly(principal, tier.apr, s.loanTerm) : 0;
+      const gapMo = s.gapEnabled ? s.gapPremium : 0;
+      const warMo = s.warrantyEnabled ? s.warrantyPremium : 0;
+      const totalMo = baseMonthly + gapMo + warMo;
+      const totalInterest = (baseMonthly * s.loanTerm) - principal;
+      const errors = [];
+      if (s.carPrice <= 0) errors.push("Enter a car price greater than $0");
+      if (s.downPayment >= s.carPrice && s.carPrice > 0) errors.push("Down payment must be less than the car price");
+      if (!s.creditTier) errors.push("Select a FICO credit tier");
+      const fmt = n => n.toLocaleString("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2 });
+
+      return (
+        <div style={S.root}><div style={S.container}><div style={S.grid}>
+          <div>
+            <div style={S.card}>
+              <p style={S.sectionTitle}>Vehicle &amp; Financing</p>
+              <div style={S.formGroup}><label style={S.label}>Car Price</label><NumberInput value={s.carPrice} onChange={v => set("carPrice", v)} placeholder="e.g. 25,000" />{s.carPrice <= 0 && <span style={S.warning}>Please enter the vehicle price.</span>}</div>
+              <div style={S.formGroup}><label style={S.label}>Down Payment</label><NumberInput value={s.downPayment} onChange={v => set("downPayment", v)} placeholder="e.g. 3,000" />{s.downPayment >= s.carPrice && s.carPrice > 0 && <span style={S.warning}>Down payment cannot exceed the car price.</span>}</div>
+              <div style={S.formGroup}><label style={S.label}>Amount to Finance</label><div style={{ ...S.input, background: "rgba(201,168,76,0.06)", borderColor: "rgba(201,168,76,0.2)", color: "#C9A84C", fontWeight: 700, cursor: "default" }}>{principal > 0 ? fmt(principal) : "—"}</div></div>
+              <div style={S.formGroup}>
+                <label style={S.label}>Vehicle Year of Manufacture</label>
+                <select style={S.select} value={s.vehicleYear} onChange={e => set("vehicleYear", parseInt(e.target.value))}>
+                  {VEHICLE_YEARS.map(y => <option key={y} value={y}>{y}</option>)}
+                </select>
+                <span style={{ fontSize: 12, color: "#8892b0", marginTop: 6, display: "block" }}>Max eligible term for {s.vehicleYear}:&nbsp;<strong style={{ color: "#C9A84C" }}>{maxTerm} months</strong></span>
+              </div>
+              <div style={S.formGroup}>
+                <label style={S.label}>Loan Term (months)</label>
+                <div style={S.termGroup}>{termOpts.map(t => <button key={t} style={S.termBtn(s.loanTerm === t)} onClick={() => set("loanTerm", t)}>{t}mo</button>)}</div>
+              </div>
+            </div>
+
+            <div style={{ ...S.card, marginTop: 20 }}>
+              <p style={S.sectionTitle}>FICO Score 08 Tier</p>
+              <div style={S.tierGrid}>
+                {CREDIT_TIERS.map(t => (
+                  <div key={t.id} style={S.tierCard(s.creditTier === t.id, t.color)} onClick={() => set("creditTier", t.id)}>
+                    <div style={{ fontSize: 20, marginBottom: 4 }}>{t.emoji}</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 2 }}>{t.label}</div>
+                    <div style={{ fontSize: 11, color: "#8892b0", marginBottom: 5 }}>{t.range}</div>
+                    <div style={{ fontSize: 16, fontWeight: 700, color: t.color }}>{t.apr}% APR</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ ...S.card, marginTop: 20 }}>
+              <p style={S.sectionTitle}>Optional Add-ons</p>
+              <div style={S.toggleRow}><span style={{ fontSize: 14, fontWeight: 500 }}>🛡️ GAP / Double Interest Insurance</span><Toggle on={s.gapEnabled} onToggle={() => set("gapEnabled", !s.gapEnabled)} /></div>
+              {s.gapEnabled && <div style={{ marginBottom: 18 }}><label style={{ ...S.label, fontSize: 12 }}>Monthly GAP Premium ($)</label><NumberInput value={s.gapPremium} onChange={v => set("gapPremium", v)} placeholder="e.g. 45" /></div>}
+              <div style={S.toggleRow}><span style={{ fontSize: 14, fontWeight: 500 }}>🔧 Extended Warranty Premium</span><Toggle on={s.warrantyEnabled} onToggle={() => set("warrantyEnabled", !s.warrantyEnabled)} /></div>
+              {s.warrantyEnabled && <div><label style={{ ...S.label, fontSize: 12 }}>Monthly Warranty Premium ($)</label><NumberInput value={s.warrantyPremium} onChange={v => set("warrantyPremium", v)} placeholder="e.g. 75" /></div>}
+            </div>
+          </div>
+
+          <div style={{ position: "sticky", top: 88 }}>
+            <div style={S.resultsCard}>
+              <p style={{ ...S.sectionTitle, marginBottom: 16 }}>Estimated Payment Breakdown</p>
+              {errors.length > 0 && <div style={S.validationPanel}>{errors.map((e, i) => <div key={i} style={{ fontSize: 13, color: "#f87171", marginBottom: 4, display: "flex", gap: 6 }}><span>⚠️</span>{e}</div>)}</div>}
+              <div style={S.summaryBar}>
+                <div style={{ fontSize: 12, color: "#8892b0", textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 4 }}>Total Monthly Payment</div>
+                <div style={{ fontFamily: "'Playfair Display', serif", fontSize: "clamp(2.2rem, 6vw, 3rem)", fontWeight: 700, color: "#C9A84C", lineHeight: 1.1 }}>{totalMo > 0 ? fmt(totalMo) : "—"}</div>
+                <div style={{ fontSize: 13, color: "#8892b0", marginTop: 5 }}>per month for {s.loanTerm} months</div>
+              </div>
+              {[
+                { label: "📌 Base Monthly Payment",  value: baseMonthly > 0 ? fmt(baseMonthly) : "—", color: "#fff" },
+                ...(s.gapEnabled      ? [{ label: "🛡️ GAP Insurance Premium",    value: fmt(gapMo), color: "#a78bfa" }] : []),
+                ...(s.warrantyEnabled ? [{ label: "🔧 Extended Warranty Premium", value: fmt(warMo), color: "#6ee7b7" }] : []),
+                { label: "💳 Total Monthly",         value: totalMo > 0 ? fmt(totalMo) : "—", color: "#C9A84C", bold: true },
+                { label: "💰 Amount Financed",       value: principal > 0 ? fmt(principal) : "—", color: "#fff" },
+                { label: "📈 Total Interest Paid",   value: totalInterest > 0 ? fmt(totalInterest) : "—", color: "#f97316" },
+                { label: "🔢 Effective APR",         value: tier ? `${tier.apr}%` : "—", color: tier ? tier.color : "#8892b0" },
+              ].map((row, i) => (
+                <div key={i} style={S.statRow}>
+                  <span style={{ fontSize: 14, color: "#8892b0" }}>{row.label}</span>
+                  <span style={{ fontSize: row.bold ? 17 : 15, fontWeight: 700, color: row.color }}>{row.value}</span>
+                </div>
+              ))}
+              <button style={S.resetBtn} onClick={() => setS(INIT)}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(201,168,76,0.4)"; e.currentTarget.style.color = "#C9A84C"; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.15)"; e.currentTarget.style.color = "#8892b0"; }}>
+                ↺ Reset Calculator
+              </button>
+            </div>
+          </div>
+        </div></div></div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById("calc-root"));
+    root.render(<Calculator />);
+  </script>
+</body>
+</html>
