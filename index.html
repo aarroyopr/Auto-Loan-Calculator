@@ -132,6 +132,10 @@
     .inv-card-detail strong { color:#cbd5e1; }
     .inv-card-desc { font-size:12px; color:#64748b; margin-top:10px; line-height:1.55; border-top:1px solid rgba(255,255,255,0.06); padding-top:10px; }
     .inv-msg { font-size:13px; margin-top:10px; text-align:center; min-height:20px; }
+    .inv-calc-btn { width:100%; margin-top:14px; background:linear-gradient(135deg,#C9A84C,#a8893b); color:#0A0F1E; border:none; padding:11px; border-radius:8px; font-family:'DM Sans',sans-serif; font-size:13px; font-weight:700; cursor:pointer; transition:transform 0.15s,box-shadow 0.15s; }
+    .inv-calc-btn:hover { transform:translateY(-1px); box-shadow:0 4px 16px rgba(201,168,76,0.3); }
+    .inv-source-badge { display:inline-block; padding:2px 8px; border-radius:100px; font-size:10px; font-weight:700; letter-spacing:0.5px; margin-bottom:8px; }
+    .inv-hint { font-size:12px; color:#8892b0; line-height:1.6; margin-bottom:16px; }
   </style>
 </head>
 <body>
@@ -140,6 +144,7 @@
     <ul class="nav-links">
       <li><a href="#how-it-works">How It Works</a></li>
       <li><a href="#rates">APR Rates</a></li>
+      <li><a href="#vehicles">Vehicles</a></li>
       <li><a href="#calculator">Calculator</a></li>
       <li><a href="#calculator" class="nav-cta">Calculate Now</a></li>
     </ul>
@@ -199,6 +204,13 @@
     </div>
   </section>
   <div class="divider"></div>
+  <section class="section" id="vehicles">
+    <p class="section-label">Available Vehicles</p>
+    <h2 class="section-title">Browse Our Current Inventory</h2>
+    <p class="section-sub">These vehicles are available now. Tap <strong style="color:#C9A84C">Calculate My Payment</strong> on any car and the calculator below will be prefilled with its price, model year, and the longest loan term it qualifies for.</p>
+    <div class="inv-grid" id="public-inv-grid" style="margin-top:0"></div>
+  </section>
+  <div class="divider"></div>
   <section id="calculator">
     <div class="calc-header">
       <p class="section-label">The Calculator</p>
@@ -217,6 +229,7 @@
     <ul class="footer-links">
       <li><a href="#how-it-works">How It Works</a></li>
       <li><a href="#rates">Rate Reference</a></li>
+      <li><a href="#vehicles">Vehicles</a></li>
       <li><a href="#calculator">Calculator</a></li>
       <li><a class="admin-link" onclick="openAdminLogin()">Admin</a></li>
     </ul>
@@ -271,6 +284,10 @@
           </div>
           <button class="add-vehicle-btn" onclick="addVehicle()">🚗 Add to Inventory</button>
           <div class="inv-msg" id="invMsg"></div>
+        </div>
+        <div class="glass-card">
+          <button class="export-btn" style="margin-bottom:10px" onclick="exportInventoryJSON()">📤 Publish: Export inventory.json</button>
+          <p class="inv-hint">Vehicles you add here are saved in <strong>this browser only</strong>. To make them visible to <strong>all visitors</strong>, click the button above to download <strong>inventory.json</strong>, then upload/commit that file to the website's root folder (next to index.html) in the GitHub repository. The page automatically loads inventory.json for every visitor.</p>
         </div>
         <div class="inv-grid" id="inv-grid"></div>
       </div>
@@ -424,6 +441,15 @@
       const termOpts = getTermOptions(maxTerm);
       const priceTier = getPriceTierLabel(s.carPrice);
       useEffect(() => { if (s.loanTerm > maxTerm) set("loanTerm", maxTerm); }, [s.carPrice, s.vehicleYear, maxTerm]);
+      useEffect(() => {
+        const onPrefill = e => {
+          const { price, year } = e.detail;
+          setS(p => ({ ...p, carPrice:price, vehicleYear:year, loanTerm:getMaxTerm(price, year) }));
+        };
+        window.addEventListener("jo-prefill-calculator", onPrefill);
+        return () => window.removeEventListener("jo-prefill-calculator", onPrefill);
+      }, []);
+      const yearOpts = VEHICLE_YEARS.includes(s.vehicleYear) ? VEHICLE_YEARS : [...VEHICLE_YEARS, s.vehicleYear].sort((a,b) => b - a);
       const basePrincipal = Math.max(0, s.carPrice - s.downPayment);
       const principal = basePrincipal + (s.warrantyEnabled ? WARRANTY_COST : 0);
       const tier = CREDIT_TIERS.find(t => t.id === s.creditTier);
@@ -459,7 +485,7 @@
               <div style={S.formGroup}>
                 <label style={S.label}>Vehicle Year of Manufacture</label>
                 <select style={S.select} value={s.vehicleYear} onChange={e => set("vehicleYear", parseInt(e.target.value))}>
-                  {VEHICLE_YEARS.map(y => <option key={y} value={y}>{y}</option>)}
+                  {yearOpts.map(y => <option key={y} value={y}>{y}</option>)}
                 </select>
                 <span style={{ fontSize:12, color:"#8892b0", marginTop:6, display:"block" }}>
                   {s.vehicleYear >= 2019 ? "✅ Model year 2019–present" : "⚠️ Model year 2018 or older"}&nbsp;· Max term:&nbsp;<strong style={{ color:"#C9A84C" }}>{maxTerm} months</strong>
@@ -560,6 +586,21 @@
     }
     function getInventory() { return JSON.parse(localStorage.getItem("carInventory") || "[]"); }
     function saveInventory(data) { localStorage.setItem("carInventory", JSON.stringify(data)); }
+    // Published inventory loaded from inventory.json (committed to the repo, visible to ALL visitors).
+    let seedInventory = [];
+    function getHiddenIds() { return JSON.parse(localStorage.getItem("carInventoryHidden") || "[]"); }
+    function saveHiddenIds(data) { localStorage.setItem("carInventoryHidden", JSON.stringify(data)); }
+    // Effective inventory = this browser's local vehicles + published ones not removed locally, deduped by id.
+    function getEffectiveInventory() {
+      const local = getInventory(), hidden = getHiddenIds();
+      const seed = seedInventory.filter(v => !hidden.includes(v.id) && !local.some(l => l.id === v.id));
+      return [...local, ...seed];
+    }
+    function esc(str) { return String(str == null ? "" : str).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;"); }
+    function vehicleCardBody(v) {
+      return `<div class="inv-card-title">${esc(v.year)} ${esc(v.make)} ${esc(v.model)}</div><div class="inv-card-detail">💰 Price: <strong>$${esc(v.price)}</strong></div><div class="inv-card-detail">🛣️ Mileage: <strong>${v.mileage ? esc(v.mileage) + " mi" : "N/A"}</strong></div><div class="inv-card-detail">⛽ MPG: <strong>${esc(v.mpgCity)||"—"} city / ${esc(v.mpgHwy)||"—"} hwy</strong></div><div class="inv-card-detail">🔑 VIN: <strong style="font-size:11px;letter-spacing:0.5px">${esc(v.vin)||"N/A"}</strong></div>${v.desc ? `<div class="inv-card-desc">${esc(v.desc)}</div>` : ""}`;
+    }
+    function vehicleCardImg(v) { return v.photo ? `<img src="${esc(v.photo)}" alt="${esc(v.make)} ${esc(v.model)}" />` : `<div class="inv-img-placeholder">🚗</div>`; }
     function previewImg(input) { const prev = document.getElementById("imgPreview"); if (input.files && input.files[0]) { const reader = new FileReader(); reader.onload = e => { prev.src = e.target.result; prev.style.display = "block"; }; reader.readAsDataURL(input.files[0]); } }
     function addVehicle() {
       const get = id => document.getElementById(id).value.trim();
@@ -573,15 +614,52 @@
       ["invYear","invMake","invModel","invVin","invPrice","invMileage","invMpgCity","invMpgHwy","invDesc"].forEach(id => document.getElementById(id).value = "");
       document.getElementById("invPhoto").value = ""; prev.style.display = "none";
       msg.style.color = "#86efac"; msg.textContent = "✅ Vehicle added to inventory!";
-      setTimeout(() => msg.textContent = "", 3000); renderInventory();
+      setTimeout(() => msg.textContent = "", 3000); renderInventory(); renderPublicInventory();
     }
-    function removeVehicle(id) { saveInventory(getInventory().filter(v => v.id !== id)); renderInventory(); }
+    function removeVehicle(id) {
+      const local = getInventory();
+      if (local.some(v => v.id === id)) saveInventory(local.filter(v => v.id !== id));
+      else saveHiddenIds([...getHiddenIds(), id]); // published vehicle: hide locally; re-export inventory.json to remove it for everyone
+      renderInventory(); renderPublicInventory();
+    }
     function renderInventory() {
-      const inv = getInventory();
+      const inv = getEffectiveInventory();
       const grid = document.getElementById("inv-grid");
       if (!inv.length) { grid.innerHTML = '<div class="no-data" style="grid-column:1/-1">🚗 No vehicles in inventory yet. Add one above!</div>'; return; }
-      grid.innerHTML = inv.map(v => `<div class="inv-card">${v.photo ? `<img src="${v.photo}" alt="${v.make} ${v.model}" />` : `<div class="inv-img-placeholder">🚗</div>`}<div class="inv-card-body"><div class="inv-card-title">${v.year} ${v.make} ${v.model}</div><div class="inv-card-detail">💰 Price: <strong>$${v.price}</strong></div><div class="inv-card-detail">🛣️ Mileage: <strong>${v.mileage ? v.mileage + " mi" : "N/A"}</strong></div><div class="inv-card-detail">⛽ MPG: <strong>${v.mpgCity||"—"} city / ${v.mpgHwy||"—"} hwy</strong></div><div class="inv-card-detail">🔑 VIN: <strong style="font-size:11px;letter-spacing:0.5px">${v.vin||"N/A"}</strong></div>${v.desc ? `<div class="inv-card-desc">${v.desc}</div>` : ""}<button class="delete-btn" style="margin-top:14px;width:100%" onclick="removeVehicle(${v.id})">🗑️ Remove Listing</button></div></div>`).join("");
+      const localIds = new Set(getInventory().map(v => v.id));
+      grid.innerHTML = inv.map(v => `<div class="inv-card">${vehicleCardImg(v)}<div class="inv-card-body"><span class="inv-source-badge" style="${localIds.has(v.id) ? "background:rgba(234,179,8,0.12);color:#eab308" : "background:rgba(34,197,94,0.12);color:#22c55e"}">${localIds.has(v.id) ? "💻 This browser only" : "🌐 Published"}</span>${vehicleCardBody(v)}<button class="delete-btn" style="margin-top:14px;width:100%" onclick="removeVehicle(${v.id})">🗑️ Remove Listing</button></div></div>`).join("");
     }
+    function renderPublicInventory() {
+      const inv = getEffectiveInventory();
+      const grid = document.getElementById("public-inv-grid");
+      if (!inv.length) { grid.innerHTML = '<div class="no-data" style="grid-column:1/-1">🚗 No vehicles available right now — check back soon!</div>'; return; }
+      grid.innerHTML = inv.map(v => `<div class="inv-card">${vehicleCardImg(v)}<div class="inv-card-body">${vehicleCardBody(v)}<button class="inv-calc-btn" onclick="calculateForVehicle(${v.id})">🧮 Calculate My Payment</button></div></div>`).join("");
+    }
+    function calculateForVehicle(id) {
+      const v = getEffectiveInventory().find(x => x.id === id);
+      if (!v) return;
+      const price = parseFloat(String(v.price).replace(/[^0-9.]/g, "")) || 0;
+      const year = parseInt(v.year, 10) || new Date().getFullYear();
+      window.dispatchEvent(new CustomEvent("jo-prefill-calculator", { detail:{ price, year } }));
+      document.getElementById("calculator").scrollIntoView({ behavior:"smooth" });
+    }
+    function exportInventoryJSON() {
+      const inv = getEffectiveInventory();
+      if (!inv.length) { alert("No vehicles to export."); return; }
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([JSON.stringify(inv, null, 2)], { type:"application/json" }));
+      a.download = "inventory.json"; a.click();
+    }
+    // Load the published inventory (if the file exists) and render the public showcase.
+    renderPublicInventory();
+    fetch("inventory.json", { cache:"no-store" })
+      .then(r => r.ok ? r.json() : [])
+      .catch(() => [])
+      .then(data => {
+        if (Array.isArray(data)) seedInventory = data;
+        renderPublicInventory();
+        if (document.getElementById("adminOverlay").classList.contains("open")) renderInventory();
+      });
   </script>
 </body>
 </html>
